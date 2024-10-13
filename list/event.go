@@ -34,7 +34,7 @@ func (l *ListInfo) keyEvent() (lineData []string) {
 	l.Keyword = ""
 	allFlag := false // input Ctrl + A flag
 
-	l.getFilterText()
+	l.updateFilterText()
 	l.draw()
 
 	for {
@@ -80,7 +80,7 @@ func (l *ListInfo) keyEvent() (lineData []string) {
 			// Tab Key(select)
 			case termbox.KeyTab:
 				if l.MultiFlag == true {
-					l.toggle(strings.Fields(l.ViewText[l.CursorLine+1])[0])
+					l.toggle(strings.Fields(l.ViewText[l.CursorLine+1].Text)[0])
 				}
 				if l.CursorLine < len(l.ViewText)-headLine {
 					l.CursorLine += 1
@@ -89,10 +89,10 @@ func (l *ListInfo) keyEvent() (lineData []string) {
 
 			// Ctrl + a Key(all select)
 			case termbox.KeyCtrlA:
-				if l.MultiFlag == true {
+				if l.MultiFlag {
 					l.allToggle(allFlag)
 					// allFlag Toggle
-					if allFlag == false {
+					if !allFlag {
 						allFlag = true
 					} else {
 						allFlag = false
@@ -106,7 +106,7 @@ func (l *ListInfo) keyEvent() (lineData []string) {
 			// Enter Key
 			case termbox.KeyEnter:
 				if len(l.SelectName) == 0 {
-					l.SelectName = append(l.SelectName, strings.Fields(l.ViewText[l.CursorLine+1])[0])
+					l.SelectName = append(l.SelectName, strings.Fields(l.ViewText[l.CursorLine+1].Text)[0])
 				}
 				return
 
@@ -115,7 +115,7 @@ func (l *ListInfo) keyEvent() (lineData []string) {
 				if len(l.Keyword) > 0 {
 					l.deleteRune()
 
-					l.getFilterText()
+					l.updateFilterText()
 					if l.CursorLine > len(l.ViewText) {
 						l.CursorLine = len(l.ViewText)
 					}
@@ -135,7 +135,7 @@ func (l *ListInfo) keyEvent() (lineData []string) {
 			default:
 				if ev.Ch != 0 {
 					l.insertRune(ev.Ch)
-					l.getFilterText()
+					l.updateFilterText()
 					if l.CursorLine > len(l.ViewText)-headLine {
 						l.CursorLine = len(l.ViewText) - headLine
 					}

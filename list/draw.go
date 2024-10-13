@@ -84,7 +84,7 @@ func (l *ListInfo) draw() {
 	firstLine := (l.CursorLine/height)*height + 1
 	lastLine := firstLine + height
 
-	var viewList []string
+	var viewList []ListItem
 	if lastLine > len(l.ViewText) {
 		viewList = l.ViewText[firstLine:]
 	} else {
@@ -95,7 +95,7 @@ func (l *ListInfo) draw() {
 	// View Head
 	drawLine(0, 0, l.Prompt, 3, l.Term.BackgroundColor)
 	drawLine(len(l.Prompt), 0, l.Keyword, l.Term.Color, l.Term.BackgroundColor)
-	drawLine(l.Term.LeftMargin, 1, l.ViewText[0], 3, l.Term.BackgroundColor)
+	drawLine(l.Term.LeftMargin, 1, l.ViewText[0].Text, 3, l.Term.BackgroundColor)
 
 	// View List
 	for listKey, listValue := range viewList {
@@ -106,7 +106,7 @@ func (l *ListInfo) draw() {
 		keywordColor := 5
 
 		for _, selectedLine := range l.SelectName {
-			if strings.Split(listValue, " ")[0] == selectedLine {
+			if strings.Split(listValue.Text, " ")[0] == selectedLine {
 				cursorColor = 0
 				cursorBackColor = 6
 			}

@@ -29,6 +29,11 @@ import (
 //     - キーバインドの設定変更
 //     - Windowsでも動作するように修正する
 
+const (
+	DefaultColor           = 255
+	DefaultBackgroundColor = 255
+)
+
 // ListInfo is Struct at view list.
 type ListInfo struct {
 	// Incremental search line prompt string
@@ -38,11 +43,17 @@ type ListInfo struct {
 	SelectName []string
 	DataList   conf.Config // original config data(struct)
 	DataText   []string    // all data text list
-	ViewText   []string    // filtered text list
+	ViewText   []ListItem  // filtered text list
 	MultiFlag  bool        // multi select flag
 	Keyword    string      // input keyword
 	CursorLine int         // cursor line
 	Term       TermInfo
+}
+
+type ListItem struct {
+	Text           string
+	MatchedIndexes []int
+	Score          int
 }
 
 type TermInfo struct {
@@ -56,6 +67,21 @@ type ListArrayInfo struct {
 	Name    string
 	Connect string
 	Note    string
+}
+
+func NewListInfo(prompt string, nameList []string, dataList conf.Config, isMulti bool) *ListInfo {
+	return &ListInfo{
+		Prompt:    prompt,
+		NameList:  nameList,
+		DataList:  dataList,
+		MultiFlag: isMulti,
+		Term: TermInfo{
+			Headline:        2,
+			LeftMargin:      2,
+			Color:           DefaultColor,
+			BackgroundColor: DefaultBackgroundColor,
+		},
+	}
 }
 
 // arrayContains returns that arr contains str.
@@ -80,7 +106,7 @@ func (l *ListInfo) toggle(newLine string) {
 			addFlag = false
 		}
 	}
-	if addFlag == true {
+	if addFlag {
 		tmpList = append(tmpList, newLine)
 	}
 	l.SelectName = []string{}
@@ -90,20 +116,16 @@ func (l *ListInfo) toggle(newLine string) {
 // Toggle the selected state of the currently displayed list
 func (l *ListInfo) allToggle(allFlag bool) {
 	SelectedList := []string{}
-	allSelectedList := []string{} // WARN: is not used
 	// selectedList in allSelectedList
-	for _, selectedLine := range l.SelectName {
-		SelectedList = append(SelectedList, selectedLine)
-	}
+	SelectedList = append(SelectedList, l.SelectName...)
 
 	// allFlag is False
-	if allFlag == false {
+	if !allFlag {
 		// On each lines that except a header line and are not selected line,
 		// toggles left end fields
 		for _, addLine := range l.ViewText[1:] {
-			addName := strings.Fields(addLine)[0]
+			addName := strings.Fields(addLine.Text)[0]
 			if !arrayContains(SelectedList, addName) {
-				allSelectedList = append(allSelectedList, addName)
 				l.toggle(addName)
 			}
 		}
@@ -111,7 +133,7 @@ func (l *ListInfo) allToggle(allFlag bool) {
 	} else {
 		// On each lines that except a header line, toggles left end fields
 		for _, addLine := range l.ViewText[1:] {
-			addName := strings.Fields(addLine)[0]
+			addName := strings.Fields(addLine.Text)[0]
 			l.toggle(addName)
 		}
 		return
@@ -139,47 +161,43 @@ func (l *ListInfo) getText() {
 	for err == nil {
 		line = convNewline(line, "")
 
-		str := strings.Replace(line, "\t", " ", -1)
+		str := strings.ReplaceAll(line, "\t", " ")
 		l.DataText = append(l.DataText, str)
 		line, err = buffer.ReadString('\n')
 	}
 }
 
-// getFilterText updates l.ViewText with matching keyword (ignore case).
+// upateFilterText updates l.ViewText with matching keyword (ignore case).
 // DataText sets ViewText if keyword is empty.
-func (l *ListInfo) getFilterText() {
+func (l *ListInfo) updateFilterText() {
 	// Initialization ViewText
-	l.ViewText = []string{}
+	l.ViewText = []ListItem{}
 
 	// SearchText Bounds Space
-	keywords := strings.Fields(l.Keyword)
-	r := l.DataText[1:]
-	line := ""
-	tmpText := []string{}
-	l.ViewText = append(l.ViewText, l.DataText[0])
+	allServerText := l.DataText[1:] // remove header line
+	tmpText := []ListItem{}
 
+	keyword := l.Keyword
 	// if No words
-	if len(keywords) == 0 {
-		l.ViewText = l.DataText
+	if len(keyword) == 0 {
+		for _, text := range l.DataText {
+			l.ViewText = append(l.ViewText, ListItem{Text: text})
+		}
 		return
 	}
 
-	for i := 0; i < len(keywords); i++ {
-		lowKeyword := regexp.QuoteMeta(strings.ToLower(keywords[i]))
-		re := regexp.MustCompile(lowKeyword)
-		tmpText = []string{}
+	l.ViewText = append(l.ViewText, ListItem{Text: l.DataText[0]})
+	lowKeyword := regexp.QuoteMeta(strings.ToLower(keyword))
+	re := regexp.MustCompile(lowKeyword)
+	tmpText = []ListItem{}
 
-		for j := 0; j < len(r); j++ {
-			line += string(r[j])
-			if re.MatchString(strings.ToLower(line)) {
-				tmpText = append(tmpText, line)
-			}
-			line = ""
+	for j := 0; j < len(allServerText); j++ {
+		line := allServerText[j]
+		if re.MatchString(strings.ToLower(line)) {
+			tmpText = append(tmpText, ListItem{Text: line})
 		}
-		r = tmpText
 	}
 	l.ViewText = append(l.ViewText, tmpText...)
-	return
 }
 
 // View is display the list in TUI
